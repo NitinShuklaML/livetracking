@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlaxFrate Tracking</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            width: 100%;
+            z-index: 1;
+        }
+
+        .container {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            z-index: 2;
+        }
+
+        .search-box {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            width: 300px;
+            padding: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-box label {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .search-box input {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            margin-bottom: 16px;
+            padding: 8px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #007BFF;
+        }
+
+        .search-box button {
+            background-color: #007BFF;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 12px;
+            text-transform: uppercase;
+        }
+
+        .search-box button:hover {
+            background-color: #0056b3;
+        }
+    </style>	
+    <script>
+        let map, directionsService, directionsRenderer, vehicleMarker;
+
+        function initMap() {
+            const mapOptions = {
+                center: { lat: 37.7749, lng: -122.4194 },
+                zoom: 12,
+            };
+            map = new google.maps.Map(document.getElementById("map"), mapOptions);
+
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
+
+            initAutocomplete();
+        }
+
+        function initAutocomplete() {
+            const pickupInput = document.getElementById("pickup");
+            const destinationInput = document.getElementById("destination");
+
+            const pickupAutocomplete = new google.maps.places.Autocomplete(pickupInput);
+            const destinationAutocomplete = new google.maps.places.Autocomplete(destinationInput);
+
+            let pickupPlace, destinationPlace;
+
+            pickupAutocomplete.addListener("place_changed", () => {
+                pickupPlace = pickupAutocomplete.getPlace();
+                if (!pickupPlace.geometry || !destinationPlace) {
+                    return;
+                }
+                calculateAndDisplayRoute(pickupPlace, destinationPlace);
+            });
+
+            destinationAutocomplete.addListener("place_changed", () => {
+                destinationPlace = destinationAutocomplete.getPlace();
+                if (!destinationPlace.geometry || !pickupPlace) {
+                    return;
+                }
+                calculateAndDisplayRoute(pickupPlace, destinationPlace);
+            });
+        }
+
+        function calculateAndDisplayRoute(pickupPlace, destinationPlace) {
+			const request = {
+				origin: pickupPlace.geometry.location,
+				destination: destinationPlace.geometry.location,
+				travelMode: google.maps.TravelMode.DRIVING,
+			};
+
+			directionsService.route(request, (result, status) => {
+				if (status === google.maps.DirectionsStatus.OK) {
+					directionsRenderer.setDirections(result);
+
+					// Create and display the vehicle marker
+					createVehicleMarker(pickupPlace.geometry.location);
+
+					// Start the vehicle animation
+					animateVehicle();
+				}
+			});
+		}
+		
+		function createVehicleMarker(position) {
+			if (vehicleMarker) {
+				vehicleMarker.setMap(null); // Remove the previous marker, if any
+			}
+			vehicleMarker = new google.maps.Marker({
+				position: position,
+				map: map,
+				icon: {
+					url: "https://maps.gstatic.com/mapfiles/ms2/micons/blue-dot.png",
+					scaledSize: new google.maps.Size(32, 32),
+				},
+			});
+		}
+		
+		function interpolate(start, end, progress) {
+			const dLat = end.lat() - start.lat();
+			const dLng = end.lng() - start.lng();
+			const lat = start.lat() + (dLat * progress);
+			const lng = start.lng() + (dLng * progress);
+
+			return new google.maps.LatLng(lat, lng);
+		}
+
+		
+		function animateVehicle() {
+			const route = directionsRenderer.getDirections().routes[0].overview_path;
+			const numStepsPerLeg = 100; // Number of steps to divide each leg of the route into
+			let currentLegIndex = 0;
+			let stepIndex = 0;
+
+			function step() {
+				if (currentLegIndex < route.length - 1) {
+					const start = route[currentLegIndex];
+					const end = route[currentLegIndex + 1];
+					const stepDistance = 1 / numStepsPerLeg;
+					const progress = stepDistance * stepIndex;
+					const interpolatedPosition = interpolate(start, end, progress);
+
+					vehicleMarker.setPosition(interpolatedPosition);
+
+					if (stepIndex < numStepsPerLeg - 1) {
+						stepIndex++;
+					} else {
+						currentLegIndex++;
+						stepIndex = 0;
+					}
+
+					setTimeout(step, 50); // Adjust the delay to control the animation speed
+				} else {
+					// Move the vehicle marker to the exact destination
+					vehicleMarker.setPosition(route[route.length - 1]);
+				}
+			}
+
+			step();
+		}
+
+
+
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD4A6KrvIVmMCGHVw7CwRXfph1iTqef5UM&callback&libraries=places&callback=initMap"></script>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div class="container">
+        <div class="search-box">
+            <label for="pickup">Pickup</label>
+            <input type="text" id="pickup" placeholder="Enter your pickup location">
+
+            <label for="destination">Destination</label>
+            <input type="text" id="destination" placeholder="Enter your destination">
+
+            <button>Map Path</button>
+        </div>
+    </div>
+	<script>
+		window.addEventListener('load', initMap);
+	</script>
+</body>
+
+</html>
