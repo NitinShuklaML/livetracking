@@ -16,12 +16,36 @@
             locationList.appendChild(listItem);
         }
 
+        async function sendLocationToServer(lat, lng) {
+            const apiUrl = 'https://flaxrate-serverapi.azurewebsites.net/api/GpsLocation';
+            const requestBody = {
+                lat: lat,
+                lng: lng
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Error sending location to the server:', error.message);
+            }
+        }
+
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition((position) => {
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
                 displayLocation(lat, lng);
-                // Send the user's location to the server
+                sendLocationToServer(lat, lng);
             }, (error) => {
                 console.log("Error getting location:", error.message);
             });
