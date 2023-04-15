@@ -7,11 +7,13 @@
 </head>
 <body>
     <h1>Mobile GPS Location</h1>
-    <p id="location"></p>
+    <ol id="locationList"></ol>
     <script>
         function displayLocation(lat, lng) {
-            const locationElement = document.getElementById("location");
-            locationElement.innerHTML = `Latitude: ${lat}, Longitude: ${lng}`;
+            const locationList = document.getElementById("locationList");
+            const listItem = document.createElement("li");
+            listItem.textContent = `Latitude: ${lat}, Longitude: ${lng}`;
+            locationList.appendChild(listItem);
         }
 
         if (navigator.geolocation) {
